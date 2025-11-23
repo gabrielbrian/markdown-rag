@@ -1,13 +1,9 @@
+streamlit
 python-dotenv
 langchain
 langchain-community
+langchain-core
 langchain-text-splitters
 langchain-huggingface
-langchain-core
 langchain-ollama
-unstructured
-markdown
-huggingface-hub
-torch
 sentence-transformers
-streamlit

@@ -1,11 +1,12 @@
 import streamlit as st
+import os
 from dotenv import load_dotenv
 from rag_engine import MdRag 
 
 load_dotenv()
 
 st.set_page_config(
-    page_title="Markdown AI Asistant",
+    page_title="RAG AI Assistant",
     page_icon="✨",
     layout="centered"
 )
@@ -13,7 +14,7 @@ st.set_page_config(
 st.markdown("""
 <style>
     /* Main Background and Text */
-    .stApp {s
+    .stApp {
         background-color: #0e1117;
         color: #e0e0e0;
     }
@@ -27,59 +28,68 @@ st.markdown("""
     }
 
     /* Chat Bubble Styling */
-    .stChatMessage {
-        background-color: transparent;
-        border: none;
-    }
-    
-    /* User Message Bubble - Blue Gradient */
-    div[data-testid="stChatMessage"]:nth-child(odd) {
-        background-color: rgba(28, 33, 40, 0.5);
-        border: 1px solid rgba(79, 172, 254, 0.2);
-        border-radius: 15px;
-        padding: 10px;
-    }
-
-    /* Assistant Message Bubble - Subtle Dark */
-    div[data-testid="stChatMessage"]:nth-child(even) {
+    div[data-testid="stChatMessage"] {
         background-color: rgba(255, 255, 255, 0.05);
         border-radius: 15px;
         padding: 10px;
     }
-
-    /* Input Box Styling */
-    .stTextInput input {
-        border-radius: 20px;
-        border: 1px solid #333;
-        background-color: #161b22;
-        color: white;
+    
+    div[data-testid="stChatMessage"]:nth-child(odd) {
+        background-color: rgba(28, 33, 40, 0.5);
+        border: 1px solid rgba(79, 172, 254, 0.2);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- App Logic ---
+
+SOURCE_DIR = "llm_sources"
+
+def get_available_files():
+    """Scans the source directory for .md and .txt files."""
+    if not os.path.exists(SOURCE_DIR):
+        os.makedirs(SOURCE_DIR)
+        return []
+    return [f for f in os.listdir(SOURCE_DIR) if f.endswith(('.md', '.txt'))]
 
 @st.cache_resource
-def get_rag_system():
-    """
-    Initialize the RAG system once and cache it.
-    This prevents reloading the model on every interaction.
-    """
-    return MdRag("test.md")
+def get_rag_system(filename):
+
+    return MdRag(filename=filename, temperature=0.3)
 
 def main():
-    st.title("Markdown AI Assistant")
-    st.markdown("Ask questions about your Markdown File.")
+    with st.sidebar:
+        st.header("🗂️ Document Selection")
+        
+        files = get_available_files()
+        if not files:
+            st.warning(f"No files found in '{SOURCE_DIR}' folder.")
+            st.stop()
+            
+        selected_file = st.selectbox("Choose a file:", files)
+        
+        st.divider()
+        
+        if st.button("Clear Chat History"):
+            st.session_state.messages = []
+            st.rerun()
+
+    st.title(f"Chat with {selected_file}")
 
     try:
-        rag = get_rag_system()
+        rag = get_rag_system(selected_file)
     except Exception as e:
         st.error(f"Failed to initialize RAG system: {e}")
-        st.info("Please ensure 'rag_engine.py' is in the same directory.")
         return
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
+
+    if "current_file" not in st.session_state:
+        st.session_state.current_file = selected_file
+    elif st.session_state.current_file != selected_file:
+        st.session_state.messages = [] # Clear history on change
+        st.session_state.current_file = selected_file
+        st.rerun()
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):

@@ -2,52 +2,39 @@ import os
 import sys
 from dotenv import load_dotenv
 
-from langchain_community.document_loaders import UnstructuredMarkdownLoader
-from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_ollama import ChatOllama
-
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
-# Load environment variables (useful if running this file directly)
+from preprocess import process_document
+
 load_dotenv()
 
 class MdRag:
-    def __init__(self, filename="test.md"):
-        self.file_path = filename
+    def __init__(self, filename, source_dir="llm_sources", temperature=0):
+
+        self.source_dir = source_dir
+        self.file_path = os.path.join(self.source_dir, filename)
+        self.temperature = temperature
+        
         self.vectorstore = None
         self.chain = None
         
-        # Ensure dummy file exists for demo purposes
-        if not os.path.exists(self.file_path):
-            print(f"File {self.file_path} not found. Creating placeholder.")
-            with open(self.file_path, "w") as f:
-                f.write("# Welcome\nThis is a placeholder file for the RAG system.")
-
         self._ingest_and_index()
 
     def _ingest_and_index(self):
-        with open(self.file_path, "r", encoding="utf-8") as f:
-            text = f.read()
+        print(f"Processing {self.file_path}...")
+        
+        try:
+            final_docs = process_document(self.file_path)
+            print(f"Generated {len(final_docs)} chunks.")
+        except Exception as e:
+            print(f"Error processing file: {e}")
+            return
 
-        headers_to_split_on = [
-            ("#", "Header 1"),
-            ("##", "Header 2"),
-            ("###", "Header 3"),
-        ]
-        md_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
-        md_splits = md_splitter.split_text(text)
-
-        char_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200
-        )
-        final_docs = char_splitter.split_documents(md_splits)
-
-        # Using CPU for embeddings to ensure compatibility
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
             model_kwargs={'device': 'cpu'}
@@ -63,7 +50,7 @@ class MdRag:
 
         llm = ChatOllama(
             model="phi3:mini",
-            temperature=0
+            temperature=self.temperature
         )
 
         system_prompt = (
@@ -91,10 +78,5 @@ class MdRag:
 
     def query(self, question):
         if not self.chain:
-            return "System not initialized."
+            return "System not initialized or file processing failed."
         return self.chain.invoke(question)
-
-if __name__ == "__main__":
-    # Test the logic independently
-    rag = MdRag()
-    print(rag.query("Hello"))
