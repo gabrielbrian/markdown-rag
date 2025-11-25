@@ -1,68 +1,82 @@
-## Local RAG Implementation Guide
+# Local RAG Implementation Guide
 
-A simple local RAG implementation over Markdown files using LangChain, Ollama, and Streamlit.
+A local Retrieval-Augmented Generation (RAG) system for Markdown files with preprocessing, hierarchical context preservation, and LLM-generated question augmentation.
 
-### 1. Environment Setup 
+## Prerequisites
 
-1. **Create the virtual environment:**
+- Python 3.8 or later
+- Ollama installed locally
+
+## Set up your environment
+
+### Create and activate a virtual environment
+
+1. Create the virtual environment:
    ```bash
    python -m venv venv
    ```
 
-2. **Activate the environment:**
-   - **Mac/Linux:** `source venv/bin/activate`
-   - **Windows:** `venv\Scripts\activate`
+2. Activate the environment:
+   - **macOS/Linux**: `source venv/bin/activate`
+   - **Windows**: `venv\Scripts\activate`
 
-3. **Install dependencies:**
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-### 2. Content Setup
+### Configure your content
 
 1. Place your Markdown file in the project folder.
 
-2. Update the filename in `rag_engine.py` *Change "test.md" to your filename.*
+2. In `rag_engine.py`, update the filename from `test.md` to your filename.
 
-## 3. AI Model Setup
+### Set up the AI model
 
-1. **Install Ollama:** Download from [ollama.com](https://ollama.com).
+1. Download and install Ollama from [ollama.com](https://ollama.com).
 
-2. **Pull a model:** Open your terminal and run:
+2. Pull the model:
    ```bash
    ollama pull phi3:mini
    ```
-   Or whichever model you prefer
+   You can use a different model if you prefer.
 
-3. **Update the Code:**
-   If you are NOT using `phi3:mini`, open `rag_engine.py` and update line 64:
+3. If you're not using `phi3:mini`, update the model name in `rag_engine.py` at line 27:
    ```python
    llm = ChatOllama(
-       model="your-model-name",  # <- Update this
+       model="your-model-name",  # Update this line
        temperature=0
    )
    ```
 
-4. **Ensure Ollama is running:** Make sure the Ollama app is open in the background.
+4. Make sure Ollama is running in the background.
 
-## 4. Run the App
+## Run the application
 
-With your virtual environment still active:
+With your virtual environment active, run:
 ```bash
 streamlit run app.py
 ```
 
-A new browser tab will open with the chat box connected to your Markdown file. 
+The application opens in a new browser tab with a chat interface connected to your Markdown file.
 
-## Quick Guide on Tuning
 
-#### `chunk_size`
-- **Smaller (500):** Good for specific fact retrieval ("What is the IP address?").
-- **Larger (e.g., 2000):** Good for summaries or answering broad concept questions.
+## Tune the system
 
-#### `chunk_overlap`
-Keep this around 10-20% of your chunk size. It prevents sentences from getting cut in half at the edge of a chunk.
+### chunk_size (in preprocess.py)
+- **Current settings**: 2,000 characters for Markdown files, 1,000 characters for text files
+- **Smaller (500-1,000)**: Use for specific fact retrieval (for example, "What is the IP address?")
+- **Larger (1,500-2,000)**: Use for summaries or broad concept questions
+- **Note**: Markdown files use larger chunks to keep sections together when possible.
 
-#### `temperature`
-- **`0`:** Best for technical docs and RAG. It forces the AI to stick to the facts.
-- **`0.7`+:** Better for creative writing or brainstorming.
+### chunk_overlap
+Keep this value at 10-20% of your chunk size (currently 200 characters). This prevents sentences from being cut in half at chunk boundaries.
+
+### temperature (in rag_engine.py)
+- **0**: Use for technical documentation and RAG. This forces the AI to stick to facts.
+- **0.7 or higher**: Use for creative writing or brainstorming.
+
+### k (retrieval count in rag_engine.py)
+- **Current setting**: 5 chunks retrieved per query
+- **Lower (2-3)**: Provides faster, more focused answers
+- **Higher (7-10)**: Provides more comprehensive context, but may include less relevant information

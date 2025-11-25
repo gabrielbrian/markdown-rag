@@ -6,4 +6,5 @@ langchain-core
 langchain-text-splitters
 langchain-huggingface
 langchain-ollama
+langchain-chroma
 sentence-transformers
