@@ -65,6 +65,7 @@ streamlit run app.py
 
 ## Architecture & Optimizations
 - **Async Pipeline**: The ingestion process (`preprocess.py` and `rag_engine.py`) is fully asynchronous, utilizing `asyncio.gather` to process chunks in parallel.
+- **Rate Limiting**: Implements `asyncio.Semaphore` to limit concurrent LLM requests (default: 5), preventing API rate limits (HTTP 429) and local resource exhaustion.
 - **Token Optimization**: Instead of passing the full document text to the LLM for every chunk's context generation, we generate a **Global Summary** once per file and pass that summary to the chunk enrichment prompt. This reduces token usage by ~90% for large files.
 - **Metadata Separation**: Enriched context (breadcrumbs, questions, summary) is prepended to the text for the embedding model but separated by `---CONTENT---`. The UI intelligently hides this metadata to keep citations clean.
 

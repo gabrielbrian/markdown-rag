@@ -41,51 +41,41 @@ async def _generate_global_summary(text, llm):
         print(f"Error generating global summary: {e}")
         return ""
 
-async def _enrich_chunk(doc, global_summary, llm):
+async def _enrich_chunk(doc, global_summary, llm, semaphore):
     if not llm:
         return doc
 
-    header_context = ""
-    
-    # Reconstruct header context from metadata (logic moved from loop)
-    # We need to preserve the existing header context logic but apply it here or before.
-    # Actually, let's keep the header context construction in the main loop and only do LLM enrichment here.
-    # But wait, the original code constructed `header_context` and THEN appended LLM stuff.
-    # Let's assume `doc` passed here already has the structural metadata-based context in `page_content` 
-    # OR we pass the structural context separately.
-    
-    # To keep it clean, let's do the LLM enrichment and return the enriched text parts.
-    
-    try:
-        # 1. Generate Contextual Context using Global Summary
-        context_prompt = (
-            f"Global Document Summary:\n{global_summary}\n\n"
-            f"Chunk Content:\n{doc.page_content}\n\n"
-            "Based on the global summary, provide a short, succinct context to situate this chunk within the document. "
-            "Answer only with the succinct context."
-        )
-        
-        # 2. Generate Questions
-        questions_prompt = (
-            f"Chunk Content:\n{doc.page_content}\n\n"
-            "What questions could a user ask to find this section? Return only the possible questions."
-        )
+    async with semaphore:
+        try:
+            # 1. Generate Contextual Context using Global Summary
+            context_prompt = (
+                f"Global Document Summary:\n{global_summary}\n\n"
+                f"Chunk Content:\n{doc.page_content}\n\n"
+                "Based on the global summary, provide a short, succinct context to situate this chunk within the document. "
+                "Answer only with the succinct context."
+            )
+            
+            # 2. Generate Questions
+            questions_prompt = (
+                f"Chunk Content:\n{doc.page_content}\n\n"
+                "What questions could a user ask to find this section? Return only the possible questions."
+            )
 
-        # Run both LLM calls in parallel for this chunk
-        chunk_context_res, questions_res = await asyncio.gather(
-            llm.ainvoke(context_prompt),
-            llm.ainvoke(questions_prompt)
-        )
-        
-        chunk_context = chunk_context_res.content
-        questions = questions_res.content
-        
-        enrichment = f"Context:\n{chunk_context}\n\nPotential Questions:\n{questions}\n\n"
-        return enrichment
-        
-    except Exception as e:
-        print(f"Error enriching chunk: {e}")
-        return ""
+            # Run both LLM calls in parallel for this chunk
+            chunk_context_res, questions_res = await asyncio.gather(
+                llm.ainvoke(context_prompt),
+                llm.ainvoke(questions_prompt)
+            )
+            
+            chunk_context = chunk_context_res.content
+            questions = questions_res.content
+            
+            enrichment = f"Context:\n{chunk_context}\n\nPotential Questions:\n{questions}\n\n"
+            return enrichment
+            
+        except Exception as e:
+            print(f"Error enriching chunk: {e}")
+            return ""
 
 async def _split_markdown(text, llm=None, file_path=None):
   
@@ -123,6 +113,9 @@ async def _split_markdown(text, llm=None, file_path=None):
 
     tasks = []
     processed_docs = []
+    
+    # Limit concurrency to 5 to avoid rate limits or crashing local LLMs
+    semaphore = asyncio.Semaphore(5)
 
     for doc in docs:
         # Skip chunks with minimal content
@@ -155,7 +148,7 @@ async def _split_markdown(text, llm=None, file_path=None):
         
         # Prepare for async enrichment
         if llm:
-            tasks.append(_enrich_chunk(doc, global_summary, llm))
+            tasks.append(_enrich_chunk(doc, global_summary, llm, semaphore))
         else:
             tasks.append(asyncio.sleep(0)) # Placeholder for no-LLM case
             
@@ -163,7 +156,7 @@ async def _split_markdown(text, llm=None, file_path=None):
 
     # Run all enrichment tasks in parallel
     if llm and tasks:
-        print(f"Enriching {len(tasks)} chunks in parallel...")
+        print(f"Enriching {len(tasks)} chunks in parallel (max 5 concurrent)...")
         enrichment_results = await asyncio.gather(*tasks)
     else:
         enrichment_results = [""] * len(processed_docs)
