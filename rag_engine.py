@@ -1,6 +1,7 @@
 import os
 import sys
 import asyncio
+import json
 from dotenv import load_dotenv
 
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -29,16 +30,18 @@ class MdRag:
         api_key = os.getenv("GOOGLE_API_KEY")
         
         if api_key:
-            print("Using Gemini Model")
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+            print(f"Using Gemini Model: {model_name}")
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash-lite",
+                model=model_name,
                 temperature=self.temperature,
                 google_api_key=api_key
             )
         else:
-            print("Using Ollama Model")
+            model_name = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+            print(f"Using Ollama Model: {model_name}")
             self.llm = ChatOllama(
-                model="gemma3:4b",
+                model=model_name,
                 temperature=self.temperature
             )
         
@@ -56,9 +59,8 @@ class MdRag:
                 persist_directory=self.persist_dir,
                 embedding_function=self.embeddings
             )
-        else:
-            print("No existing database found. Building new vector store...")
-            self._ingest_and_index()
+        
+        self._ingest_and_index()
         
         self._build_chain()
 
@@ -81,7 +83,38 @@ class MdRag:
             print("No files found to ingest.")
             return
 
+        hashes_file = os.path.join(self.source_dir, "file_hashes.json")
+        existing_hashes = {}
+        if os.path.exists(hashes_file):
+            try:
+                with open(hashes_file, "r") as f:
+                    existing_hashes = json.load(f)
+            except Exception:
+                print("Could not load existing hashes. Re-indexing all.")
+
+        new_hashes = existing_hashes.copy()
+        files_to_process = []
+
+        # Check which files need processing
+        from preprocess import calculate_file_hash
+        
         for filename in files:
+            file_path = os.path.join(self.source_dir, filename)
+            current_hash = calculate_file_hash(file_path)
+            
+            if filename in existing_hashes and existing_hashes[filename] == current_hash:
+                print(f"Skipping {filename} (unchanged).")
+            else:
+                files_to_process.append(filename)
+                new_hashes[filename] = current_hash
+
+        if not files_to_process:
+            print("No files changed. Knowledge base is up to date.")
+            return
+
+        print(f"Processing {len(files_to_process)} changed files...")
+
+        for filename in files_to_process:
             file_path = os.path.join(self.source_dir, filename)
             print(f"Processing {file_path}...")
             
@@ -93,17 +126,31 @@ class MdRag:
                 print(f"  - Error processing {filename}: {e}")
 
         if not all_docs:
-            print("No chunks generated from any files.")
+            print("No chunks generated from changed files.")
+
+            if files_to_process:
+                 with open(hashes_file, "w") as f:
+                    json.dump(new_hashes, f)
             return
 
-        print(f"\nTotal chunks to ingest: {len(all_docs)}")
+        print(f"\nTotal new chunks to ingest: {len(all_docs)}")
 
-        self.vectorstore = Chroma.from_documents(
-            documents=all_docs,
-            embedding=self.embeddings,
-            persist_directory=self.persist_dir
-        )
+        if self.vectorstore:
+            print("Adding to existing vector store...")
+            self.vectorstore.add_documents(all_docs)
+        else:
+            print("Creating new vector store...")
+            self.vectorstore = Chroma.from_documents(
+                documents=all_docs,
+                embedding=self.embeddings,
+                persist_directory=self.persist_dir
+            )
+        
         print(f"Vector store persisted to {self.persist_dir}")
+        
+        # Save new hashes only after successful persistence
+        with open(hashes_file, "w") as f:
+            json.dump(new_hashes, f)
 
     def _build_chain(self):
         retriever = self.vectorstore.as_retriever(search_kwargs={"k": 5})

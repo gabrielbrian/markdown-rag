@@ -1,7 +1,16 @@
 import os
 import asyncio
+import hashlib
 from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
+
+def calculate_file_hash(file_path):
+    """Calculates the MD5 hash of a file."""
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
 
 async def process_document(file_path, llm=None):
     if not os.path.exists(file_path):

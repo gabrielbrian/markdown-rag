@@ -41,7 +41,10 @@ The system supports two modes. It auto-detects which one to use based on your en
 1.  Get an API Key from [Google AI Studio](https://aistudio.google.com/app/apikey).
 2.  Create a `.env` file in the project root:
     ```bash
-    GOOGLE_API_KEY=your_api_key_here
+    #GOOGLE_API_KEY=
+    # Model Configuration
+    GEMINI_MODEL=gemini-2.5-flash-lite
+    OLLAMA_MODEL=gemma3:4b
     ```
 3.  The app will automatically detect the key and use Gemini.
 

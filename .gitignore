@@ -1,12 +1,11 @@
 # Virtual environments
 venv/
-env/
 
 # Chroma DB
 chroma_db/
 
 # Environment variables
-.env
+
 
 # Python cache
 __pycache__/
@@ -27,3 +26,5 @@ llm_sources/
 results/
 
 evaluation_results.csv
+feedback/feedback.csv
+.env
