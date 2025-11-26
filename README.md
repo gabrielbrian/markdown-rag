@@ -1,82 +1,63 @@
 # Local RAG Implementation Guide
 
-A local Retrieval-Augmented Generation (RAG) system for Markdown files with preprocessing, hierarchical context preservation, and LLM-generated question augmentation.
+A local Retrieval-Augmented Generation (RAG) system for Markdown and Text files. It features a **Multi-File Knowledge Base**, **Hierarchical Context Preservation**, and **LLM-Generated Question Augmentation**.
+
+## Features
+- **Multi-File Support**: Ingests all `.md` and `.txt` files from the `llm_sources` directory.
+- **Dual LLM Support**: Automatically switches between **Ollama** (Local) and **Google Gemini** (Cloud) based on configuration.
+- **Context Enrichment**: Enhances retrieval by generating "succinct context" and "potential questions" for each chunk using an LLM.
 
 ## Prerequisites
-
 - Python 3.8 or later
-- Ollama installed locally
+- [Ollama](https://ollama.com) installed locally (for local mode)
 
-## Set up your environment
+## Setup
 
-### Create and activate a virtual environment
+### 1. Environment Setup
+Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # macOS/Linux
+# venv\Scripts\activate  # Windows
+```
 
-1. Create the virtual environment:
-   ```bash
-   python -m venv venv
-   ```
+Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-2. Activate the environment:
-   - **macOS/Linux**: `source venv/bin/activate`
-   - **Windows**: `venv\Scripts\activate`
+### 2. Configure Content
+Place your Markdown (`.md`) or Text (`.txt`) files in the `llm_sources/` directory. The system will ingest all of them.
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 3. Configure LLM Provider
+The system supports two modes. It auto-detects which one to use based on your environment variables.
 
-### Configure your content
+#### Option A: Use Google Gemini (Recommended for speed/quality)
+1.  Get an API Key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+2.  Create a `.env` file in the project root:
+    ```bash
+    GOOGLE_API_KEY=your_api_key_here
+    ```
+3.  The app will automatically detect the key and use Gemini.
 
-1. Place your Markdown file in the project folder.
+#### Option B: Use Ollama (Local/Private)
+1.  Ensure you have no `.env` file (or comment out the key).
+2.  Pull the default model:
+    ```bash
+    ollama pull phi3:mini
+    ```
+3.  The app will default to Ollama if no API key is found.
 
-2. In `rag_engine.py`, update the filename from `test.md` to your filename.
-
-### Set up the AI model
-
-1. Download and install Ollama from [ollama.com](https://ollama.com).
-
-2. Pull the model:
-   ```bash
-   ollama pull phi3:mini
-   ```
-   You can use a different model if you prefer.
-
-3. If you're not using `phi3:mini`, update the model name in `rag_engine.py` at line 27:
-   ```python
-   llm = ChatOllama(
-       model="your-model-name",  # Update this line
-       temperature=0
-   )
-   ```
-
-4. Make sure Ollama is running in the background.
-
-## Run the application
-
-With your virtual environment active, run:
+## Run the Application
 ```bash
 streamlit run app.py
 ```
 
-The application opens in a new browser tab with a chat interface connected to your Markdown file.
+## Usage
+1.  **Chat**: Ask questions about your documents. The system searches across all files in `llm_sources`.
+2.  **Rebuild Knowledge Base**: If you add/remove files or change the LLM provider, click the **"Rebuild Knowledge Base"** button in the sidebar to re-process everything.
 
-
-## Tune the system
-
-### chunk_size (in preprocess.py)
-- **Current settings**: 2,000 characters for Markdown files, 1,000 characters for text files
-- **Smaller (500-1,000)**: Use for specific fact retrieval (for example, "What is the IP address?")
-- **Larger (1,500-2,000)**: Use for summaries or broad concept questions
-- **Note**: Markdown files use larger chunks to keep sections together when possible.
-
-### chunk_overlap
-Keep this value at 10-20% of your chunk size (currently 200 characters). This prevents sentences from being cut in half at chunk boundaries.
-
-### temperature (in rag_engine.py)
-- **0**: Use for technical documentation and RAG. This forces the AI to stick to facts.
-- **0.7 or higher**: Use for creative writing or brainstorming.
-
-### k (retrieval count in rag_engine.py)
-- **Current setting**: 5 chunks retrieved per query
-- **Lower (2-3)**: Provides faster, more focused answers
-- **Higher (7-10)**: Provides more comprehensive context, but may include less relevant information
+## Tuning
+- **Chunk Size**: Adjusted in `preprocess.py` (default: 2000 chars for MD).
+- **Temperature**: Adjusted in `rag_engine.py` (default: 0.5).
+- **Retrieval Count (k)**: Adjusted in `rag_engine.py` (default: 5 chunks).
