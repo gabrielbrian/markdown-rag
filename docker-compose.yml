@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  rag-app:
+    build: .
+    container_name: rag-app
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./llm_sources:/app/llm_sources
+      - ./chroma_db:/app/chroma_db
+      - ./feedback:/app/feedback
+    environment:
+      # If using Ollama on the host machine
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # Pass through environment variables from the host or .env file
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-lite}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:4b}
+    # For Linux users, 'host.docker.internal' might not work out of the box.
+    # Uncomment the following lines if you are on Linux and having connectivity issues:
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"

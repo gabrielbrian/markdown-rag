@@ -61,6 +61,23 @@ The system supports two modes. It auto-detects which one to use based on your en
 streamlit run app.py
 ```
 
+## Docker Support
+You can also run the application using Docker. This is useful for deployment or ensuring a consistent environment.
+
+1.  **Build and Run**:
+    ```bash
+    docker-compose up --build
+    ```
+2.  **Access**: Open `http://localhost:8501` in your browser.
+3.  **Ollama Connectivity**: 
+    *   The setup uses `host.docker.internal` to connect to Ollama running on your host machine.
+    *   **Crucial**: You must configure Ollama to listen on all interfaces (0.0.0.0) to allow the Docker container to connect.
+    *   **Run this on your host**:
+        ```bash
+        OLLAMA_HOST=0.0.0.0 ollama serve
+        ```
+
+
 ## Usage
 1.  **Chat**: Ask questions about your documents. The system searches across all files in `llm_sources`.
 2.  **View Sources**: Expand the "Sources Used" section in the chat to see the exact text blocks used to generate the answer.

@@ -39,10 +39,12 @@ class MdRag:
             )
         else:
             model_name = os.getenv("OLLAMA_MODEL", "gemma3:4b")
-            print(f"Using Ollama Model: {model_name}")
+            base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+            print(f"Using Ollama Model: {model_name} at {base_url}")
             self.llm = ChatOllama(
                 model=model_name,
-                temperature=self.temperature
+                temperature=self.temperature,
+                base_url=base_url
             )
         
         self.embeddings = HuggingFaceEmbeddings(
@@ -190,4 +192,11 @@ class MdRag:
     def query(self, question):
         if not self.chain:
             return "System not initialized or file processing failed."
-        return self.chain.invoke(question)
+        try:
+            return self.chain.invoke(question)
+        except Exception as e:
+            # Check for common connection errors
+            error_str = str(e)
+            if "Connection refused" in error_str or "Network is unreachable" in error_str or "Errno 101" in error_str:
+                return ("Error connecting to LLM")
+            raise e
