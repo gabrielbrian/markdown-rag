@@ -21,3 +21,8 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
+llm_sources/
+
+# Evaluation
+results/
+evaluate.py

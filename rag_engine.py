@@ -37,7 +37,7 @@ class MdRag:
         else:
             print("Using Ollama Model")
             self.llm = ChatOllama(
-                model="phi3:mini",
+                model="gemma3:4b",
                 temperature=self.temperature
             )
         

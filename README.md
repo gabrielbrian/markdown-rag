@@ -44,7 +44,7 @@ The system supports two modes. It auto-detects which one to use based on your en
 1.  Ensure you have no `.env` file (or comment out the key).
 2.  Pull the default model:
     ```bash
-    ollama pull phi3:mini
+    ollama pull gemma3:4b
     ```
 3.  The app will default to Ollama if no API key is found.
 
