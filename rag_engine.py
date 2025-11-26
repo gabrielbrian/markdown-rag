@@ -97,7 +97,6 @@ class MdRag:
         new_hashes = existing_hashes.copy()
         files_to_process = []
 
-        # Check which files need processing
         from preprocess import calculate_file_hash
         
         for filename in files:
@@ -150,7 +149,6 @@ class MdRag:
         
         print(f"Vector store persisted to {self.persist_dir}")
         
-        # Save new hashes only after successful persistence
         with open(hashes_file, "w") as f:
             json.dump(new_hashes, f)
 
@@ -195,7 +193,6 @@ class MdRag:
         try:
             return self.chain.invoke(question)
         except Exception as e:
-            # Check for common connection errors
             error_str = str(e)
             if "Connection refused" in error_str or "Network is unreachable" in error_str or "Errno 101" in error_str:
                 return ("Error connecting to LLM")

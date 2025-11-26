@@ -5,7 +5,6 @@ from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharac
 from langchain_core.documents import Document
 
 def calculate_file_hash(file_path):
-    """Calculates the MD5 hash of a file."""
     hash_md5 = hashlib.md5()
     with open(file_path, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
@@ -34,8 +33,6 @@ async def _generate_global_summary(text, llm):
     if not llm:
         return ""
     
-    # Truncate text for summary generation if it's too long to avoid context window issues
-    # Taking first 10k chars should be enough for a high-level summary
     truncated_text = text[:10000]
     
     prompt = (
@@ -56,7 +53,6 @@ async def _enrich_chunk(doc, global_summary, llm, semaphore):
 
     async with semaphore:
         try:
-            # 1. Generate Contextual Context using Global Summary
             context_prompt = (
                 f"Global Document Summary:\n{global_summary}\n\n"
                 f"Chunk Content:\n{doc.page_content}\n\n"
@@ -64,13 +60,11 @@ async def _enrich_chunk(doc, global_summary, llm, semaphore):
                 "Answer only with the succinct context."
             )
             
-            # 2. Generate Questions
             questions_prompt = (
                 f"Chunk Content:\n{doc.page_content}\n\n"
                 "What questions could a user ask to find this section? Return only the possible questions."
             )
 
-            # Run both LLM calls in parallel for this chunk
             chunk_context_res, questions_res = await asyncio.gather(
                 llm.ainvoke(context_prompt),
                 llm.ainvoke(questions_prompt)
@@ -113,7 +107,6 @@ async def _split_markdown(text, llm=None, file_path=None):
             section_chunks[section_key] = []
         section_chunks[section_key].append(doc)
     
-    # Generate Global Summary once
     global_summary = ""
     if llm:
         print("Generating global document summary...")
@@ -123,11 +116,9 @@ async def _split_markdown(text, llm=None, file_path=None):
     tasks = []
     processed_docs = []
     
-    # Limit concurrency to 5 to avoid rate limits or crashing local LLMs
     semaphore = asyncio.Semaphore(5)
 
     for doc in docs:
-        # Skip chunks with minimal content
         if len(doc.page_content.strip()) < 50:
             continue
             
@@ -152,18 +143,15 @@ async def _split_markdown(text, llm=None, file_path=None):
             total_chunks = len(chunks_in_section)
             structural_context += f"[Section split: Part {chunk_index} of {total_chunks}]\n\n"
         
-        # Store original content (Clean Text requirement)
         doc.metadata["original_content"] = doc.page_content
         
-        # Prepare for async enrichment
         if llm:
             tasks.append(_enrich_chunk(doc, global_summary, llm, semaphore))
         else:
-            tasks.append(asyncio.sleep(0)) # Placeholder for no-LLM case
+            tasks.append(asyncio.sleep(0))
             
         processed_docs.append((doc, structural_context))
 
-    # Run all enrichment tasks in parallel
     if llm and tasks:
         print(f"Enriching {len(tasks)} chunks in parallel (max 5 concurrent)...")
         enrichment_results = await asyncio.gather(*tasks)
