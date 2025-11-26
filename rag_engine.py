@@ -1,12 +1,13 @@
 import os
 import sys
+import asyncio
 from dotenv import load_dotenv
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_core.output_parsers import StrOutputParser
 
 from preprocess import process_document
@@ -62,6 +63,9 @@ class MdRag:
         self._build_chain()
 
     def _ingest_and_index(self):
+        asyncio.run(self._ingest_and_index_async())
+
+    async def _ingest_and_index_async(self):
         print(f"Scanning {self.source_dir}...")
         
         all_docs = []
@@ -82,7 +86,7 @@ class MdRag:
             print(f"Processing {file_path}...")
             
             try:
-                docs = process_document(file_path, llm=self.llm)
+                docs = await process_document(file_path, llm=self.llm)
                 all_docs.extend(docs)
                 print(f"  - Generated {len(docs)} chunks.")
             except Exception as e:
@@ -121,13 +125,19 @@ class MdRag:
         ])
 
         self.chain = (
-            {
-                "context": retriever | (lambda docs: "\n\n".join(d.page_content for d in docs)),
-                "input": RunnablePassthrough()
+            RunnableParallel({"context": retriever, "input": RunnablePassthrough()})
+            | {
+                "answer": (
+                    {
+                        "context": (lambda x: "\n\n".join(d.page_content for d in x["context"])),
+                        "input": lambda x: x["input"]
+                    }
+                    | prompt
+                    | self.llm
+                    | StrOutputParser()
+                ),
+                "sources": lambda x: x["context"]
             }
-            | prompt
-            | self.llm
-            | StrOutputParser()
         )
 
     def query(self, question):

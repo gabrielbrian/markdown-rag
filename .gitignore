@@ -25,4 +25,5 @@ llm_sources/
 
 # Evaluation
 results/
-evaluate.py
+
+evaluation_results.csv

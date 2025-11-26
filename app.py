@@ -96,6 +96,12 @@ def main():
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+            if "sources" in message:
+                with st.expander("Sources Used"):
+                    for i, source in enumerate(message["sources"]):
+                        st.markdown(f"**Source {i+1}**")
+                        st.markdown(source)
+                        st.divider()
 
     if prompt := st.chat_input("What would you like to know?"):
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -105,9 +111,28 @@ def main():
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 response = rag.query(prompt)
-                st.markdown(response)
+                
+                sources_text = []
+                if isinstance(response, dict):
+                    answer = response["answer"]
+                    sources = response["sources"]
+                else:
+                    answer = response
+                    sources = []
+
+                st.markdown(answer)
+                
+                if sources:
+                    with st.expander("Sources Used"):
+                        for i, doc in enumerate(sources):
+                            st.markdown(f"**Source {i+1}**")
+                            # Use original_content if available, else page_content
+                            content = doc.metadata.get("original_content", doc.page_content)
+                            sources_text.append(content)
+                            st.markdown(content)
+                            st.divider()
         
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        st.session_state.messages.append({"role": "assistant", "content": answer, "sources": sources_text})
 
 if __name__ == "__main__":
     main()
