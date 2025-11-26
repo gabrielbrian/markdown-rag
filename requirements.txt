@@ -8,3 +8,5 @@ langchain-huggingface
 langchain-ollama
 langchain-chroma
 sentence-transformers
+einops
+langchain-google-genai

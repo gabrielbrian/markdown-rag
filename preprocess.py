@@ -78,11 +78,24 @@ def _split_markdown(text, llm=None, file_path=None):
         
         if llm:
             try:
+                # 1. Generate Contextual Context
+                context_prompt = (
+                    f"<document>\n{text}\n</document>\n"
+                    f"Here is the chunk we want to situate within the whole document\n"
+                    f"<chunk>\n{doc.page_content}\n</chunk>\n"
+                    "Please give a short succinct context to situate this chunk within the overall document "
+                    "for the purposes of improving search retrieval of the chunk. "
+                    "Answer only with the succinct context and nothing else."
+                )
+                chunk_context = llm.invoke(context_prompt).content
+                header_context += f"Context:\n{chunk_context}\n\n"
+
+                # 2. Generate Questions
                 prompt = f"Here is a section of text:\n{doc.page_content}\n\nWhat questions could a user ask to find this section? Return only the possible questions."
                 questions = llm.invoke(prompt).content
                 header_context += f"Potential Questions:\n{questions}\n\n"
             except Exception as e:
-                print(f"Error generating questions: {e}")
+                print(f"Error generating enrichment: {e}")
 
         if header_context:
             doc.page_content = f"{header_context}---CONTENT---\n\n{doc.page_content}"

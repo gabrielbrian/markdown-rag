@@ -2,6 +2,9 @@
 venv/
 env/
 
+# Chroma DB
+chroma_db/
+
 # Environment variables
 .env
 

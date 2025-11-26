@@ -6,8 +6,8 @@ from rag_engine import MdRag
 load_dotenv()
 
 st.set_page_config(
-    page_title="RAG AI Assistant",
-    page_icon="✨",
+    page_title="RAG MD",
+    page_icon="🌍",
     layout="centered"
 )
 
@@ -44,39 +44,46 @@ st.markdown("""
 
 SOURCE_DIR = "llm_sources"
 
-def get_available_files():
-    """Scans the source directory for .md and .txt files."""
-    if not os.path.exists(SOURCE_DIR):
-        os.makedirs(SOURCE_DIR)
-        return []
-    return [f for f in os.listdir(SOURCE_DIR) if f.endswith(('.md', '.txt'))]
+
 
 @st.cache_resource
-def get_rag_system(filename):
-
-    return MdRag(filename=filename, temperature=0.3)
+def get_rag_system():
+    return MdRag(temperature=0.3)
 
 def main():
     with st.sidebar:
-        st.header("🗂️ Document Selection")
+        if os.getenv("GOOGLE_API_KEY"):
+            st.success("Using Gemini")
+        else:
+            st.info("Using Ollama")
         
-        files = get_available_files()
-        if not files:
-            st.warning(f"No files found in '{SOURCE_DIR}' folder.")
-            st.stop()
+        st.divider()
+        
+        st.header("Knowledge Base")
+        st.write(f"Source: `{SOURCE_DIR}`")
+        
+        if st.button("Rebuild Knowledge Base"):
+            with st.spinner("Rebuilding database..."):
+                # Clear existing DB
+                if os.path.exists("./chroma_db"):
+                    import shutil
+                    shutil.rmtree("./chroma_db")
+                
+                # Clear cache to force reload
+                st.cache_resource.clear()
+                st.success("Database cleared. Reloading...")
+                st.rerun()
             
-        selected_file = st.selectbox("Choose a file:", files)
-        
         st.divider()
         
         if st.button("Clear Chat History"):
             st.session_state.messages = []
             st.rerun()
 
-    st.title(f"Chat with {selected_file}")
+    st.title("Chat with your Knowledge Base ")
 
     try:
-        rag = get_rag_system(selected_file)
+        rag = get_rag_system()
     except Exception as e:
         st.error(f"Failed to initialize RAG system: {e}")
         return
@@ -84,12 +91,7 @@ def main():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    if "current_file" not in st.session_state:
-        st.session_state.current_file = selected_file
-    elif st.session_state.current_file != selected_file:
-        st.session_state.messages = [] # Clear history on change
-        st.session_state.current_file = selected_file
-        st.rerun()
+
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
