@@ -1,11 +1,16 @@
 # Local RAG Implementation Guide
 
-A local Retrieval-Augmented Generation (RAG) system for Markdown and Text files. It features a **Multi-File Knowledge Base**, **Hierarchical Context Preservation**, and **LLM-Generated Question Augmentation**.
+A local Retrieval-Augmented Generation (RAG) system for Markdown and Text files. It features a **Multi-File Knowledge Base**, **Hierarchical Context Preservation**, **LLM-Generated Question Augmentation**, and **High-Performance Async Ingestion**.
 
 ## Features
 - **Multi-File Support**: Ingests all `.md` and `.txt` files from the `llm_sources` directory.
 - **Dual LLM Support**: Automatically switches between **Ollama** (Local) and **Google Gemini** (Cloud) based on configuration.
-- **Context Enrichment**: Enhances retrieval by generating "succinct context" and "potential questions" for each chunk using an LLM.
+- **Advanced Context Enrichment**:
+    - **Hierarchical Breadcrumbs**: Preserves file path and header structure (e.g., `File > Header 1 > Header 2`).
+    - **Global Document Summary**: Generates a summary of the entire file *once* to provide high-level context for every chunk (optimizes token usage).
+    - **Potential Questions**: Generates questions that a user might ask to find specific chunks.
+- **"Clean Text" Citations**: Uses enriched metadata for high-accuracy retrieval but displays the original, clean text to the user in the "Sources Used" section.
+- **High-Performance Ingestion**: Uses `asyncio` and parallel processing to enrich document chunks concurrently, significantly reducing ingestion time.
 
 ## Prerequisites
 - Python 3.8 or later
@@ -55,7 +60,13 @@ streamlit run app.py
 
 ## Usage
 1.  **Chat**: Ask questions about your documents. The system searches across all files in `llm_sources`.
-2.  **Rebuild Knowledge Base**: If you add/remove files or change the LLM provider, click the **"Rebuild Knowledge Base"** button in the sidebar to re-process everything.
+2.  **View Sources**: Expand the "Sources Used" section in the chat to see the exact text blocks used to generate the answer.
+3.  **Rebuild Knowledge Base**: If you add/remove files or change the LLM provider, click the **"Rebuild Knowledge Base"** button in the sidebar to re-process everything.
+
+## Architecture & Optimizations
+- **Async Pipeline**: The ingestion process (`preprocess.py` and `rag_engine.py`) is fully asynchronous, utilizing `asyncio.gather` to process chunks in parallel.
+- **Token Optimization**: Instead of passing the full document text to the LLM for every chunk's context generation, we generate a **Global Summary** once per file and pass that summary to the chunk enrichment prompt. This reduces token usage by ~90% for large files.
+- **Metadata Separation**: Enriched context (breadcrumbs, questions, summary) is prepended to the text for the embedding model but separated by `---CONTENT---`. The UI intelligently hides this metadata to keep citations clean.
 
 ## Tuning
 - **Chunk Size**: Adjusted in `preprocess.py` (default: 2000 chars for MD).

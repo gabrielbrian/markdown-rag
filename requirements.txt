@@ -10,3 +10,4 @@ langchain-chroma
 sentence-transformers
 einops
 langchain-google-genai
+watchdog
