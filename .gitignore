@@ -5,7 +5,7 @@ venv/
 chroma_db/
 
 # Environment variables
-
+.env
 
 # Python cache
 __pycache__/
@@ -20,11 +20,12 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
-llm_sources/
 
-# Evaluation
-results/
+# Source files (keep directory structure with .gitkeep)
+llm_sources/*
+!llm_sources/.gitkeep
 
-evaluation_results.csv
-feedback/feedback.csv
-.env
+# Feedback logs (keep directory structure with .gitkeep)
+feedback/*
+!feedback/.gitkeep
+
